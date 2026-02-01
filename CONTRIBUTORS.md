@@ -31,6 +31,7 @@ We would like to thank the following people for their contributions to Crawl4AI:
 - [nnxiong](https://github.com/nnxiong) - fix: script tag removal losing adjacent text in cleaned_html [#1364](https://github.com/unclecode/crawl4ai/pull/1364)
 - [RoyLeviLangware](https://github.com/RoyLeviLangware) - fix: bs4 deprecation warning (text -> string) [#1077](https://github.com/unclecode/crawl4ai/pull/1077)
 - [garyluky](https://github.com/garyluky) - fix: proxy auth ERR_INVALID_AUTH_CREDENTIALS [#1281](https://github.com/unclecode/crawl4ai/pull/1281)
+- [Martichou](https://github.com/Martichou) - investigation: browser context memory leak under continuous load [#1640](https://github.com/unclecode/crawl4ai/pull/1640), [#943](https://github.com/unclecode/crawl4ai/issues/943)
 
 #### Feb-Alpha-1
 - [sufianuddin](https://github.com/sufianuddin) - fix: [Documentation for JsonCssExtractionStrategy](https://github.com/unclecode/crawl4ai/issues/651)

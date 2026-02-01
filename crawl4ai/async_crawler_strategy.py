@@ -1088,7 +1088,7 @@ class AsyncPlaywrightCrawlerStrategy(AsyncCrawlerStrategy):
                 pass
             elif total_pages <= 1 and (self.browser_config.use_managed_browser or self.browser_config.headless):
                 # Keep the page open but release it for reuse by next crawl
-                self.browser_manager.release_page(page)
+                await self.browser_manager.release_page_with_context(page)
             else:
                 # Detach listeners before closing to prevent potential errors during close
                 if config.capture_network_requests:
@@ -1104,8 +1104,8 @@ class AsyncPlaywrightCrawlerStrategy(AsyncCrawlerStrategy):
                     # Clean up console capture
                     await self.adapter.cleanup_console_capture(page, handle_console, handle_error)
 
-                # Release page from tracking before closing
-                self.browser_manager.release_page(page)
+                # Release page and decrement context refcount before closing
+                await self.browser_manager.release_page_with_context(page)
                 # Close the page
                 await page.close()
 
@@ -1623,7 +1623,7 @@ class AsyncPlaywrightCrawlerStrategy(AsyncCrawlerStrategy):
             # Clean up the page
             if page:
                 try:
-                    self.browser_manager.release_page(page)
+                    await self.browser_manager.release_page_with_context(page)
                     await page.close()
                 except Exception:
                     pass
