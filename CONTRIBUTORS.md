@@ -35,6 +35,8 @@ We would like to thank the following people for their contributions to Crawl4AI:
 - [danyQe](https://github.com/danyQe) - identified: temperature typo in async_configs.py [#973](https://github.com/unclecode/crawl4ai/pull/973)
 - [saipavanmeruga7797](https://github.com/saipavanmeruga7797) - identified: local HTML file crawling bug with capture_console_messages [#1073](https://github.com/unclecode/crawl4ai/pull/1073)
 - [stevenaldinger](https://github.com/stevenaldinger) - identified: duplicate PROMPT_EXTRACT_BLOCKS dead code in prompts.py [#931](https://github.com/unclecode/crawl4ai/pull/931)
+- [chrizzly2309](https://github.com/chrizzly2309) - identified: JWT auth bypass when no credentials provided [#1133](https://github.com/unclecode/crawl4ai/pull/1133)
+- [complete-dope](https://github.com/complete-dope) - identified: console logging error attribute issue [#729](https://github.com/unclecode/crawl4ai/pull/729)
 
 #### Feb-Alpha-1
 - [sufianuddin](https://github.com/sufianuddin) - fix: [Documentation for JsonCssExtractionStrategy](https://github.com/unclecode/crawl4ai/issues/651)
