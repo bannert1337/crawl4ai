@@ -311,6 +311,17 @@ Available field types:
 - nested: Object containing other fields
 - list: Array of similar items
 - regex: Pattern-based extraction
+
+CRITICAL - How selectors work at each level:
+- baseSelector runs against the FULL document and returns all matching elements.
+- Field selectors run INSIDE each base element (descendants only, not siblings).
+- This means a field selector will NEVER match sibling elements of the base element.
+- Therefore: NEVER use the same (or equivalent) selector as baseSelector in a field.
+  It would search for the element inside itself, which returns nothing for flat/sibling layouts.
+
+When repeating items are siblings (e.g. table rows, flat divs):
+- CORRECT: Use baseSelector to match each item, then use flat fields (text/attribute) to extract data directly from within each item.
+- WRONG: Using baseSelector as a "list" field selector inside itself — this produces empty arrays.
 </type_definitions>
 
 <behavior_rules>
@@ -606,6 +617,40 @@ Generated Schema:
     }
   ]
 }
+
+7. Sibling Rows Example (e.g. table rows, flat lists):
+<html>
+<table>
+  <tr class="item"><td class="title"><a href="/1">First</a></td></tr>
+  <tr class="item"><td class="title"><a href="/2">Second</a></td></tr>
+</table>
+</html>
+
+WRONG Schema (baseSelector reused as list field — produces empty results):
+{
+  "name": "Items",
+  "baseSelector": ".item",
+  "fields": [
+    {
+      "name": "entries",
+      "type": "list",
+      "selector": ".item",
+      "fields": [
+        {"name": "title", "selector": ".title a", "type": "text"}
+      ]
+    }
+  ]
+}
+
+CORRECT Schema (flat fields directly on base element):
+{
+  "name": "Items",
+  "baseSelector": ".item",
+  "fields": [
+    {"name": "title", "selector": ".title a", "type": "text"},
+    {"name": "link", "selector": ".title a", "type": "attribute", "attribute": "href"}
+  ]
+}
 </examples>
 
 
@@ -687,6 +732,17 @@ Available field types:
 - nested: Object containing other fields
 - list: Array of similar items
 - regex: Pattern-based extraction
+
+CRITICAL - How selectors work at each level:
+- baseSelector runs against the FULL document and returns all matching elements.
+- Field selectors run INSIDE each base element (descendants only, not siblings).
+- This means a field selector will NEVER match sibling elements of the base element.
+- Therefore: NEVER use the same (or equivalent) selector as baseSelector in a field.
+  It would search for the element inside itself, which returns nothing for flat/sibling layouts.
+
+When repeating items are siblings (e.g. table rows, flat divs):
+- CORRECT: Use baseSelector to match each item, then use flat fields (text/attribute) to extract data directly from within each item.
+- WRONG: Using baseSelector as a "list" field selector inside itself — this produces empty arrays.
 </type_definitions>
 
 <behavior_rules>
@@ -981,6 +1037,40 @@ Generated Schema:
      "attribute": "href"
    }
  ]
+}
+
+7. Sibling Rows Example (e.g. table rows, flat lists):
+<html>
+<table>
+  <tr class="item"><td class="title"><a href="/1">First</a></td></tr>
+  <tr class="item"><td class="title"><a href="/2">Second</a></td></tr>
+</table>
+</html>
+
+WRONG Schema (baseSelector reused as list field — produces empty results):
+{
+  "name": "Items",
+  "baseSelector": ".//tr[@class='item']",
+  "fields": [
+    {
+      "name": "entries",
+      "type": "list",
+      "selector": ".//tr[@class='item']",
+      "fields": [
+        {"name": "title", "selector": ".//td[@class='title']/a", "type": "text"}
+      ]
+    }
+  ]
+}
+
+CORRECT Schema (flat fields directly on base element):
+{
+  "name": "Items",
+  "baseSelector": ".//tr[@class='item']",
+  "fields": [
+    {"name": "title", "selector": ".//td[@class='title']/a", "type": "text"},
+    {"name": "link", "selector": ".//td[@class='title']/a", "type": "attribute", "attribute": "href"}
+  ]
 }
 </examples>
 
