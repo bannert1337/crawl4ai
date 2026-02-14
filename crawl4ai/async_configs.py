@@ -347,6 +347,8 @@ class GeolocationConfig:
         return GeolocationConfig.from_dict(config_dict)
 
 class ProxyConfig:
+    DIRECT = "direct"  # Sentinel: use in proxy_config list to mean "no proxy"
+
     def __init__(
         self,
         server: str,
@@ -1498,7 +1500,9 @@ class CrawlerRunConfig():
         if isinstance(proxy_config, list):
             normalized = []
             for p in proxy_config:
-                if isinstance(p, dict):
+                if p is None or p == "direct":
+                    normalized.append(None)
+                elif isinstance(p, dict):
                     normalized.append(ProxyConfig.from_dict(p))
                 elif isinstance(p, str):
                     normalized.append(ProxyConfig.from_string(p))

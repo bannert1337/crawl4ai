@@ -21,7 +21,7 @@ All anti-bot retry options live on `CrawlerRunConfig`:
 
 | Parameter | Type | Default | Description |
 |---|---|---|---|
-| `proxy_config` | `ProxyConfig`, `list[ProxyConfig]`, or `None` | `None` | Single proxy or ordered list of proxies to try. Each retry round iterates through the full list. |
+| `proxy_config` | `ProxyConfig`, `list[ProxyConfig]`, or `None` | `None` | Single proxy or ordered list of proxies to try. Each retry round iterates through the full list. Use `"direct"` or `ProxyConfig.DIRECT` in a list to explicitly try without a proxy. |
 | `max_retries` | `int` | `0` | Number of retry rounds when blocking is detected. `0` = no retries. |
 | `fallback_fetch_function` | `async (str) -> str` | `None` | Async function called as last resort. Takes URL, returns raw HTML. |
 
@@ -94,6 +94,31 @@ config = CrawlerRunConfig(
     ),
 )
 ```
+
+### Direct-First, Then Proxies
+
+Try without a proxy first, then escalate to proxies if blocked. Use `ProxyConfig.DIRECT` (or the string `"direct"`) in the list to represent a no-proxy attempt.
+
+```python
+config = CrawlerRunConfig(
+    max_retries=1,
+    proxy_config=[
+        ProxyConfig.DIRECT,  # Try without proxy first
+        ProxyConfig(
+            server="http://datacenter-proxy.example.com:8080",
+            username="user",
+            password="pass",
+        ),
+        ProxyConfig(
+            server="http://residential-proxy.example.com:9090",
+            username="user",
+            password="pass",
+        ),
+    ],
+)
+```
+
+With this setup, each round tries direct first, then datacenter, then residential. With `max_retries=1`, worst case is 2 rounds x 3 steps = 6 attempts.
 
 ### Proxy List (Escalation)
 
