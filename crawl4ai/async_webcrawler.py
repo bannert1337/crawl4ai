@@ -529,11 +529,15 @@ class AsyncWebCrawler:
                     config.proxy_config = _original_proxy_config
 
                     # --- Fallback fetch function (last resort after all retries+proxies exhausted) ---
-                    if (crawl_result
-                            and getattr(config, "fallback_fetch_function", None)):
-                        _blocked, _ = is_blocked(
-                            crawl_result.status_code, crawl_result.html or "")
-                        if _blocked:
+                    # Invoke fallback when: (a) crawl_result exists but is blocked, OR
+                    # (b) crawl_result is None because all proxies threw exceptions (browser crash, timeout).
+                    _fallback_fn = getattr(config, "fallback_fetch_function", None)
+                    if _fallback_fn and not _done:
+                        _needs_fallback = (
+                            crawl_result is None  # All proxies threw exceptions
+                            or is_blocked(crawl_result.status_code, crawl_result.html or "")[0]
+                        )
+                        if _needs_fallback:
                             self.logger.warning(
                                 message="All retries exhausted, invoking fallback_fetch_function for {url}",
                                 tag="ANTIBOT",
@@ -541,21 +545,38 @@ class AsyncWebCrawler:
                             )
                             _crawl_stats["fallback_fetch_used"] = True
                             try:
-                                _fallback_html = await config.fallback_fetch_function(url)
+                                _fallback_html = await _fallback_fn(url)
                                 if _fallback_html:
-                                    crawl_result = await self.aprocess_html(
-                                        url=url,
-                                        html=sanitize_input_encode(_fallback_html),
-                                        extracted_content=extracted_content,
-                                        config=config,
-                                        screenshot_data=None,
-                                        pdf_data=None,
-                                        verbose=config.verbose,
-                                        is_raw_html=True,
-                                        redirected_url=url,
-                                        original_scheme=urlparse(url).scheme,
-                                        **kwargs,
-                                    )
+                                    _sanitized_html = sanitize_input_encode(_fallback_html)
+                                    try:
+                                        crawl_result = await self.aprocess_html(
+                                            url=url,
+                                            html=_sanitized_html,
+                                            extracted_content=extracted_content,
+                                            config=config,
+                                            screenshot_data=None,
+                                            pdf_data=None,
+                                            verbose=config.verbose,
+                                            is_raw_html=True,
+                                            redirected_url=url,
+                                            original_scheme=urlparse(url).scheme,
+                                            **kwargs,
+                                        )
+                                    except Exception as _proc_err:
+                                        # aprocess_html may fail if browser is dead (e.g.,
+                                        # consent popup removal needs Page.evaluate).
+                                        # Fall back to a minimal result with raw HTML.
+                                        self.logger.warning(
+                                            message="Fallback HTML processing failed ({err}), using raw HTML",
+                                            tag="ANTIBOT",
+                                            params={"err": str(_proc_err)[:100]},
+                                        )
+                                        crawl_result = CrawlResult(
+                                            url=url,
+                                            html=_sanitized_html,
+                                            success=True,
+                                            status_code=200,
+                                        )
                                     crawl_result.success = True
                                     crawl_result.status_code = 200
                                     crawl_result.session_id = getattr(config, "session_id", None)
@@ -569,12 +590,28 @@ class AsyncWebCrawler:
                                 )
 
                     # --- Mark blocked results as failed ---
+                    # Skip re-check when fallback was used — the fallback result is
+                    # authoritative.  Real pages may contain anti-bot script markers
+                    # (e.g. PerimeterX JS on Walmart) that trigger false positives.
                     if crawl_result:
-                        _blocked, _block_reason = is_blocked(
-                            crawl_result.status_code, crawl_result.html or "")
-                        if _blocked:
-                            crawl_result.success = False
-                            crawl_result.error_message = f"Blocked by anti-bot protection: {_block_reason}"
+                        if not _crawl_stats.get("fallback_fetch_used"):
+                            _blocked, _block_reason = is_blocked(
+                                crawl_result.status_code, crawl_result.html or "")
+                            if _blocked:
+                                crawl_result.success = False
+                                crawl_result.error_message = f"Blocked by anti-bot protection: {_block_reason}"
+                        crawl_result.crawl_stats = _crawl_stats
+                    else:
+                        # All proxies threw exceptions and fallback either wasn't
+                        # configured or also failed.  Build a minimal result so the
+                        # caller gets crawl_stats instead of None.
+                        crawl_result = CrawlResult(
+                            url=url,
+                            html="",
+                            success=False,
+                            status_code=None,
+                            error_message=f"All proxies failed: {_block_reason}" if _block_reason else "All proxies failed",
+                        )
                         crawl_result.crawl_stats = _crawl_stats
 
                     # Compute head fingerprint for cache validation
