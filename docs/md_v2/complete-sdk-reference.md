@@ -1781,12 +1781,14 @@ run_cfg = CrawlerRunConfig(
 ### D) **Page Interaction**
 | **Parameter**              | **Type / Default**            | **What It Does**                                                                                                                       |
 |----------------------------|--------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------|
-| **`js_code`**              | `str or list[str]` (None)      | JavaScript to run after load. E.g. `"document.querySelector('button')?.click();"`.                                                     |
-| **`js_only`**              | `bool` (False)                 | If `True`, indicates we’re reusing an existing session and only applying JS. No full reload.                                           |
+| **`js_code`**              | `str or list[str]` (None)      | JavaScript to run **after** `wait_for` and `delay_before_return_html`, on the fully-loaded page. E.g. `"document.querySelector('button')?.click();"`. |
+| **`js_code_before_wait`**  | `str or list[str]` (None)      | JavaScript to run **before** `wait_for`. Use for triggering loading that `wait_for` then checks.                                       |
+| **`js_only`**              | `bool` (False)                 | If `True`, indicates we're reusing an existing session and only applying JS. No full reload.                                           |
 | **`ignore_body_visibility`** | `bool` (True)                | Skip checking if `<body>` is visible. Usually best to keep `True`.                                                                     |
 | **`scan_full_page`**       | `bool` (False)                 | If `True`, auto-scroll the page to load dynamic content (infinite scroll).                                                              |
 | **`scroll_delay`**         | `float` (0.2)                  | Delay between scroll steps if `scan_full_page=True`.                                                                                   |
 | **`process_iframes`**      | `bool` (False)                 | Inlines iframe content for single-page extraction.                                                                                     |
+| **`flatten_shadow_dom`**   | `bool` (False)                 | Flattens Shadow DOM content into the light DOM before HTML capture. Resolves slots, strips shadow-scoped styles, and force-opens closed shadow roots. Essential for sites built with Web Components. |
 | **`remove_overlay_elements`** | `bool` (False)              | Removes potential modals/popups blocking the main content.                                                                              |
 | **`remove_consent_popups`** | `bool` (False)               | Removes GDPR/cookie consent popups from known CMP providers (OneTrust, Cookiebot, TrustArc, Quantcast, Didomi, Sourcepoint, FundingChoices, etc.). Tries clicking "Accept All" first, then falls back to DOM removal. |
 | **`simulate_user`**        | `bool` (False)                 | Simulate user interactions (mouse movements) to avoid bot detection.                                                                    |
@@ -2813,6 +2815,46 @@ async def main():
 if __name__ == "__main__":
     asyncio.run(main())
 ```
+## 3.1 Flattening Shadow DOM
+Sites built with **Web Components** (Stencil, Lit, Shoelace, Angular Elements, etc.) render content inside Shadow DOM — an encapsulated sub-tree invisible to `page.content()`. Set `flatten_shadow_dom=True` to extract it:
+```python
+config = CrawlerRunConfig(
+    flatten_shadow_dom=True,
+    wait_until="load",
+    delay_before_return_html=3.0,  # give components time to hydrate
+)
+```
+```python
+import asyncio
+from crawl4ai import AsyncWebCrawler, CrawlerRunConfig
+
+async def main():
+    config = CrawlerRunConfig(
+        flatten_shadow_dom=True,
+        wait_until="load",
+        delay_before_return_html=3.0,
+    )
+    async with AsyncWebCrawler() as crawler:
+        result = await crawler.arun(
+            url="https://store.boschrexroth.com/en/us/p/hydraulic-cylinder-r900999011",
+            config=config,
+        )
+        # Without flatten_shadow_dom: ~1 KB markdown (breadcrumbs only)
+        # With flatten_shadow_dom:   ~33 KB (product description, specs, downloads)
+        print(len(result.markdown.raw_markdown))
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+When enabled, Crawl4AI also injects an init script that force-opens closed shadow roots. The flattener resolves `<slot>` projections and strips shadow-scoped `<style>` tags, producing clean HTML for the downstream scraping/markdown pipeline.
+
+**Execution order**: `flatten_shadow_dom` runs right before HTML capture, after all waits and JS execution:
+```
+js_code_before_wait → wait_for → delay → js_code → flatten_shadow_dom → page capture
+```
+
+For a full runnable example, see [`shadow_dom_crawling.py`](https://github.com/unclecode/crawl4ai/blob/main/docs/examples/shadow_dom_crawling.py).
+
 ## 4. Structured Extraction Examples
 ### 4.1 Pattern-Based with `JsonCssExtractionStrategy`
 ```python

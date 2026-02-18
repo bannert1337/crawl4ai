@@ -152,7 +152,8 @@ Use these for controlling whether you read or write from a local content cache. 
 
 | **Parameter**              | **Type / Default**            | **What It Does**                                                                                                                       |
 |----------------------------|--------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------|
-| **`js_code`**              | `str or list[str]` (None)      | JavaScript to run after load. E.g. `"document.querySelector('button')?.click();"`.                                                     |
+| **`js_code`**              | `str or list[str]` (None)      | JavaScript to run **after** `wait_for` and `delay_before_return_html`, on the fully-loaded page. E.g. `"document.querySelector('button')?.click();"`. |
+| **`js_code_before_wait`**  | `str or list[str]` (None)      | JavaScript to run **before** `wait_for`. Use for triggering loading that `wait_for` then checks (e.g. clicking a tab, then waiting for its content). |
 | **`c4a_script`**           | `str or list[str]` (None)      | C4A script that compiles to JavaScript. Alternative to writing raw JS.                                                                 |
 | **`js_only`**              | `bool` (False)                 | If `True`, indicates we're reusing an existing session and only applying JS. No full reload.                                           |
 | **`ignore_body_visibility`** | `bool` (True)                | Skip checking if `<body>` is visible. Usually best to keep `True`.                                                                     |
@@ -160,6 +161,7 @@ Use these for controlling whether you read or write from a local content cache. 
 | **`scroll_delay`**         | `float` (0.2)                  | Delay between scroll steps if `scan_full_page=True`.                                                                                   |
 | **`max_scroll_steps`**     | `int or None` (None)           | Maximum number of scroll steps during full page scan. If None, scrolls until entire page is loaded.                                     |
 | **`process_iframes`**      | `bool` (False)                 | Inlines iframe content for single-page extraction.                                                                                     |
+| **`flatten_shadow_dom`**   | `bool` (False)                 | Flattens Shadow DOM content into the light DOM before HTML capture. Resolves slots, strips shadow-scoped styles, and force-opens closed shadow roots. Essential for sites built with Web Components (Stencil, Lit, Shoelace, etc.). |
 | **`remove_overlay_elements`** | `bool` (False)              | Removes potential modals/popups blocking the main content.                                                                              |
 | **`remove_consent_popups`** | `bool` (False)               | Removes GDPR/cookie consent popups from known CMP providers (OneTrust, Cookiebot, TrustArc, Quantcast, Didomi, Sourcepoint, FundingChoices, etc.). Tries clicking "Accept All" first, then falls back to DOM removal. |
 | **`simulate_user`**        | `bool` (False)                 | Simulate user interactions (mouse movements) to avoid bot detection.                                                                    |

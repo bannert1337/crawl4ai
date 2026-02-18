@@ -581,6 +581,15 @@ class AsyncPlaywrightCrawlerStrategy(AsyncCrawlerStrategy):
         if config.override_navigator or config.simulate_user or config.magic:
             await context.add_init_script(load_js_script("navigator_overrider"))
 
+        # Force-open closed shadow roots when flatten_shadow_dom is enabled
+        if config.flatten_shadow_dom:
+            await context.add_init_script("""
+                const _origAttachShadow = Element.prototype.attachShadow;
+                Element.prototype.attachShadow = function(init) {
+                    return _origAttachShadow.call(this, {...init, mode: 'open'});
+                };
+            """)
+
         # Call hook after page creation
         await self.execute_hook("on_page_context_created", page, context=context, config=config)
 
@@ -925,16 +934,46 @@ class AsyncPlaywrightCrawlerStrategy(AsyncCrawlerStrategy):
             if config.virtual_scroll_config:
                 await self._handle_virtual_scroll(page, config.virtual_scroll_config)
 
-            # Execute JavaScript if provided
-            # if config.js_code:
-            #     if isinstance(config.js_code, str):
-            #         await page.evaluate(config.js_code)
-            #     elif isinstance(config.js_code, list):
-            #         for js in config.js_code:
-            #             await page.evaluate(js)
+            # --- Phase 1: Pre-wait JS and interaction ---
+
+            # Execute js_code_before_wait (for triggering loading that wait_for checks)
+            if config.js_code_before_wait:
+                bw_result = await self.robust_execute_user_script(
+                    page, config.js_code_before_wait
+                )
+                if not bw_result["success"]:
+                    self.logger.warning(
+                        message="js_code_before_wait had issues: {error}",
+                        tag="JS_EXEC",
+                        params={"error": bw_result.get("error")},
+                    )
+
+            # Handle user simulation
+            if config.simulate_user or config.magic:
+                await page.mouse.move(100, 100)
+                await page.mouse.down()
+                await page.mouse.up()
+                await page.keyboard.press("ArrowDown")
+
+            # --- Phase 2: Wait for page readiness ---
+
+            if config.wait_for:
+                try:
+                    timeout = config.wait_for_timeout if config.wait_for_timeout is not None else config.page_timeout
+                    await self.smart_wait(
+                        page, config.wait_for, timeout=timeout
+                    )
+                except Exception as e:
+                    raise RuntimeError(f"Wait condition failed: {str(e)}")
+
+            # Pre-content retrieval hooks and delay
+            await self.execute_hook("before_retrieve_html", page, context=context, config=config)
+            if config.delay_before_return_html:
+                await asyncio.sleep(config.delay_before_return_html)
+
+            # --- Phase 3: Post-wait JS (runs on fully-loaded page) ---
 
             if config.js_code:
-                # execution_result = await self.execute_user_script(page, config.js_code)
                 execution_result = await self.robust_execute_user_script(
                     page, config.js_code
                 )
@@ -949,28 +988,7 @@ class AsyncPlaywrightCrawlerStrategy(AsyncCrawlerStrategy):
                 await self.execute_hook("on_execution_started", page, context=context, config=config)
                 await self.execute_hook("on_execution_ended", page, context=context, config=config, result=execution_result)
 
-            # Handle user simulation
-            if config.simulate_user or config.magic:
-                await page.mouse.move(100, 100)
-                await page.mouse.down()
-                await page.mouse.up()
-                await page.keyboard.press("ArrowDown")
-
-            # Handle wait_for condition
-            # Todo: Decide how to handle this
-            if not config.wait_for and config.css_selector and False:
-            # if not config.wait_for and config.css_selector:
-                config.wait_for = f"css:{config.css_selector}"
-
-            if config.wait_for:
-                try:
-                    # Use wait_for_timeout if specified, otherwise fall back to page_timeout
-                    timeout = config.wait_for_timeout if config.wait_for_timeout is not None else config.page_timeout
-                    await self.smart_wait(
-                        page, config.wait_for, timeout=timeout
-                    )
-                except Exception as e:
-                    raise RuntimeError(f"Wait condition failed: {str(e)}")
+            # --- Phase 4: DOM processing before HTML capture ---
 
             # Update image dimensions if needed
             if not self.browser_config.text_mode:
@@ -992,11 +1010,6 @@ class AsyncPlaywrightCrawlerStrategy(AsyncCrawlerStrategy):
             if config.process_iframes:
                 page = await self.process_iframes(page)
 
-            # Pre-content retrieval hooks and delay
-            await self.execute_hook("before_retrieve_html", page, context=context, config=config)
-            if config.delay_before_return_html:
-                await asyncio.sleep(config.delay_before_return_html)
-
             # Handle CMP/consent popup removal (before generic overlay removal)
             if config.remove_consent_popups:
                 await self.remove_consent_popups(page)
@@ -1005,12 +1018,24 @@ class AsyncPlaywrightCrawlerStrategy(AsyncCrawlerStrategy):
             if config.remove_overlay_elements:
                 await self.remove_overlay_elements(page)
 
-            if config.css_selector:
+            # --- Phase 5: HTML capture ---
+
+            if config.flatten_shadow_dom:
+                # Use JS to serialize the full DOM including shadow roots
+                flatten_js = load_js_script("flatten_shadow_dom")
+                html = await self.adapter.evaluate(page, flatten_js)
+                if not html or not isinstance(html, str):
+                    # Fallback to normal capture if JS returned nothing
+                    self.logger.warning(
+                        message="Shadow DOM flattening returned no content, falling back to page.content()",
+                        tag="SCRAPE",
+                    )
+                    html = await page.content()
+            elif config.css_selector:
                 try:
-                    # Handle comma-separated selectors by splitting them
                     selectors = [s.strip() for s in config.css_selector.split(',')]
                     html_parts = []
-                    
+
                     for selector in selectors:
                         try:
                             content = await self.adapter.evaluate(page,
@@ -1021,16 +1046,13 @@ class AsyncPlaywrightCrawlerStrategy(AsyncCrawlerStrategy):
                             html_parts.append(content)
                         except Error as e:
                             print(f"Warning: Could not get content for selector '{selector}': {str(e)}")
-                    
-                    # Wrap in a div to create a valid HTML structure
-                    html = f"<div class='crawl4ai-result'>\n" + "\n".join(html_parts) + "\n</div>"                    
+
+                    html = f"<div class='crawl4ai-result'>\n" + "\n".join(html_parts) + "\n</div>"
                 except Error as e:
                     raise RuntimeError(f"Failed to extract HTML content: {str(e)}")
             else:
                 html = await page.content()
-            
-            # # Get final HTML content
-            # html = await page.content()
+
             await self.execute_hook(
                 "before_return_html", page=page, html=html, context=context, config=config
             )

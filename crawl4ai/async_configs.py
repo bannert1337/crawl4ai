@@ -1235,7 +1235,11 @@ class CrawlerRunConfig():
                                Default: 5.
 
         # Page Interaction Parameters
-        js_code (str or list of str or None): JavaScript code/snippets to run on the page.
+        js_code (str or list of str or None): JavaScript code/snippets to run on the page
+                                              after wait_for and delay_before_return_html.
+                                              Default: None.
+        js_code_before_wait (str or list of str or None): JavaScript to run BEFORE wait_for.
+                                              Use for triggering loading that wait_for then checks.
                                               Default: None.
         js_only (bool): If True, indicates subsequent calls are JS-driven updates, not full page loads.
                         Default: False.
@@ -1249,6 +1253,10 @@ class CrawlerRunConfig():
                                          If None, scrolls until the entire page is loaded. Default: None.
         process_iframes (bool): If True, attempts to process and inline iframe content.
                                 Default: False.
+        flatten_shadow_dom (bool): If True, flatten shadow DOM content into the light DOM
+                                    before HTML capture so page.content() includes it.
+                                    Also injects an init script to force-open closed shadow roots.
+                                    Default: False.
         remove_overlay_elements (bool): If True, remove overlays/popups before extracting HTML.
                                         Default: False.
         remove_consent_popups (bool): If True, remove GDPR/cookie consent popups (IAB TCF/CMP)
@@ -1410,6 +1418,7 @@ class CrawlerRunConfig():
         semaphore_count: int = 5,
         # Page Interaction Parameters
         js_code: Union[str, List[str]] = None,
+        js_code_before_wait: Union[str, List[str]] = None,
         c4a_script: Union[str, List[str]] = None,
         js_only: bool = False,
         ignore_body_visibility: bool = True,
@@ -1417,6 +1426,7 @@ class CrawlerRunConfig():
         scroll_delay: float = 0.2,
         max_scroll_steps: Optional[int] = None,
         process_iframes: bool = False,
+        flatten_shadow_dom: bool = False,
         remove_overlay_elements: bool = False,
         remove_consent_popups: bool = False,
         simulate_user: bool = False,
@@ -1538,6 +1548,7 @@ class CrawlerRunConfig():
 
         # Page Interaction Parameters
         self.js_code = js_code
+        self.js_code_before_wait = js_code_before_wait
         self.c4a_script = c4a_script
         self.js_only = js_only
         self.ignore_body_visibility = ignore_body_visibility
@@ -1545,6 +1556,7 @@ class CrawlerRunConfig():
         self.scroll_delay = scroll_delay
         self.max_scroll_steps = max_scroll_steps
         self.process_iframes = process_iframes
+        self.flatten_shadow_dom = flatten_shadow_dom
         self.remove_overlay_elements = remove_overlay_elements
         self.remove_consent_popups = remove_consent_popups
         self.simulate_user = simulate_user
@@ -1887,12 +1899,14 @@ class CrawlerRunConfig():
             "max_range": self.max_range,
             "semaphore_count": self.semaphore_count,
             "js_code": self.js_code,
+            "js_code_before_wait": self.js_code_before_wait,
             "js_only": self.js_only,
             "ignore_body_visibility": self.ignore_body_visibility,
             "scan_full_page": self.scan_full_page,
             "scroll_delay": self.scroll_delay,
             "max_scroll_steps": self.max_scroll_steps,
             "process_iframes": self.process_iframes,
+            "flatten_shadow_dom": self.flatten_shadow_dom,
             "remove_overlay_elements": self.remove_overlay_elements,
             "remove_consent_popups": self.remove_consent_popups,
             "simulate_user": self.simulate_user,

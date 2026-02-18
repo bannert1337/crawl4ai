@@ -1220,6 +1220,15 @@ class BrowserManager:
             ):
                 await context.add_init_script(load_js_script("navigator_overrider"))
 
+        # Force-open closed shadow roots when flatten_shadow_dom is enabled
+        if crawlerRunConfig and crawlerRunConfig.flatten_shadow_dom:
+            await context.add_init_script("""
+                const _origAttachShadow = Element.prototype.attachShadow;
+                Element.prototype.attachShadow = function(init) {
+                    return _origAttachShadow.call(this, {...init, mode: 'open'});
+                };
+            """)
+
         # Apply custom init_scripts from BrowserConfig (for stealth evasions, etc.)
         if self.config.init_scripts:
             for script in self.config.init_scripts:

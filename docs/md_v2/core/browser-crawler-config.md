@@ -255,16 +255,22 @@ class CrawlerRunConfig:
    - Controls caching behavior (`ENABLED`, `BYPASS`, `DISABLED`, etc.).  
    - Defaults to `CacheMode.BYPASS`.
 
-6.⠀**`js_code`** & **`c4a_script`**:  
-   - `js_code`: A string or list of JavaScript strings to execute.  
+6.⠀**`js_code`**, **`js_code_before_wait`**, & **`c4a_script`**:
+   - `js_code`: JavaScript to run **after** `wait_for` completes — on the fully-loaded page.
+   - `js_code_before_wait`: JavaScript to run **before** `wait_for` — for triggering loading that `wait_for` then checks.
    - `c4a_script`: C4A script that compiles to JavaScript.
-   - Great for "Load More" buttons or user interactions.  
+   - Great for "Load More" buttons or user interactions.
 
 7.⠀**`wait_for`**:  
    - A CSS or JS expression to wait for before extracting content.  
    - Common usage: `wait_for="css:.main-loaded"` or `wait_for="js:() => window.loaded === true"`.
 
-8.⠀**`screenshot`**, **`pdf`**, & **`capture_mhtml`**:
+8.⠀**`flatten_shadow_dom`**:
+   - If `True`, flattens Shadow DOM content into the light DOM before HTML capture.
+   - Essential for sites built with Web Components (Stencil, Lit, Shoelace, etc.).
+   - Also force-opens closed shadow roots. See [Flattening Shadow DOM](content-selection.md#31-flattening-shadow-dom).
+
+9.⠀**`screenshot`**, **`pdf`**, & **`capture_mhtml`**:
    - If `True`, captures a screenshot, PDF, or MHTML snapshot after the page is fully loaded.
    - The results go to `result.screenshot` (base64), `result.pdf` (bytes), or `result.mhtml` (string).
    - Use `force_viewport_screenshot=True` to capture only the visible viewport instead of the full page. This is faster and produces smaller images when you don't need a full-page screenshot.
