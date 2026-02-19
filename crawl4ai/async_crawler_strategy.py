@@ -476,6 +476,19 @@ class AsyncPlaywrightCrawlerStrategy(AsyncCrawlerStrategy):
             if needs_browser:
                 # Route through _crawl_web() for full browser pipeline
                 # _crawl_web() will detect file:// and raw: URLs and use set_content()
+                if url.startswith("raw"):
+                    _raw_len = len(url) - (6 if url.startswith("raw://") else 4)
+                    _triggers = [k for k in ("process_in_browser", "screenshot", "pdf",
+                        "capture_mhtml", "js_code", "wait_for", "scan_full_page",
+                        "remove_overlay_elements", "remove_consent_popups",
+                        "simulate_user", "magic", "process_iframes",
+                        "capture_console_messages", "capture_network_requests")
+                        if getattr(config, k, None)]
+                    self.logger.info(
+                        message="raw: URL ({len} bytes) routed to browser — triggers: {triggers}",
+                        tag="RAW_DEBUG",
+                        params={"len": _raw_len, "triggers": _triggers},
+                    )
                 return await self._crawl_web(url, config)
 
             # Fast path: return HTML directly without browser interaction
@@ -720,6 +733,11 @@ class AsyncPlaywrightCrawlerStrategy(AsyncCrawlerStrategy):
                         # raw:// or raw:
                         html_content = url[6:] if url.startswith("raw://") else url[4:]
 
+                    self.logger.info(
+                        message="set_content: input_len={input_len}, wait_until={wait_until}",
+                        tag="RAW_DEBUG",
+                        params={"input_len": len(html_content), "wait_until": config.wait_until},
+                    )
                     await page.set_content(html_content, wait_until=config.wait_until)
                     response = None
                     # For raw: URLs, only use base_url if provided; don't fall back to the raw HTML string
@@ -1052,6 +1070,14 @@ class AsyncPlaywrightCrawlerStrategy(AsyncCrawlerStrategy):
                     raise RuntimeError(f"Failed to extract HTML content: {str(e)}")
             else:
                 html = await page.content()
+
+            # Debug: log output length for raw: URLs to diagnose empty DOM issues
+            if is_local_content:
+                self.logger.info(
+                    message="page.content: output_len={output_len}",
+                    tag="RAW_DEBUG",
+                    params={"output_len": len(html) if html else 0},
+                )
 
             await self.execute_hook(
                 "before_return_html", page=page, html=html, context=context, config=config

@@ -393,6 +393,11 @@ class AsyncWebCrawler:
                             )
 
                     # --- Anti-bot retry setup ---
+                    # raw: URLs contain caller-provided HTML (e.g. from cache),
+                    # not content fetched from a web server.  Anti-bot detection,
+                    # proxy retries, and fallback fetching are meaningless here.
+                    _is_raw_url = url.startswith("raw:") or url.startswith("raw://")
+
                     _max_attempts = 1 + getattr(config, "max_retries", 0)
                     _proxy_list = config._get_proxy_list()
                     _original_proxy_config = config.proxy_config
@@ -490,9 +495,14 @@ class AsyncWebCrawler:
                                 crawl_result.session_id = getattr(config, "session_id", None)
                                 crawl_result.cache_status = "miss"
 
-                                # Check if blocked
-                                _blocked, _block_reason = is_blocked(
-                                    async_response.status_code, html)
+                                # Check if blocked (skip for raw: URLs —
+                                # caller-provided content, anti-bot N/A)
+                                if _is_raw_url:
+                                    _blocked = False
+                                    _block_reason = ""
+                                else:
+                                    _blocked, _block_reason = is_blocked(
+                                        async_response.status_code, html)
 
                                 _crawl_stats["proxies_used"].append({
                                     "proxy": _proxy.server if _proxy else None,
@@ -531,8 +541,9 @@ class AsyncWebCrawler:
                     # --- Fallback fetch function (last resort after all retries+proxies exhausted) ---
                     # Invoke fallback when: (a) crawl_result exists but is blocked, OR
                     # (b) crawl_result is None because all proxies threw exceptions (browser crash, timeout).
+                    # Skip for raw: URLs — fallback expects a real URL, not raw HTML content.
                     _fallback_fn = getattr(config, "fallback_fetch_function", None)
-                    if _fallback_fn and not _done:
+                    if _fallback_fn and not _done and not _is_raw_url:
                         _needs_fallback = (
                             crawl_result is None  # All proxies threw exceptions
                             or is_blocked(crawl_result.status_code, crawl_result.html or "")[0]
@@ -593,8 +604,9 @@ class AsyncWebCrawler:
                     # Skip re-check when fallback was used — the fallback result is
                     # authoritative.  Real pages may contain anti-bot script markers
                     # (e.g. PerimeterX JS on Walmart) that trigger false positives.
+                    # Also skip for raw: URLs — caller-provided content, anti-bot N/A.
                     if crawl_result:
-                        if not _crawl_stats.get("fallback_fetch_used"):
+                        if not _crawl_stats.get("fallback_fetch_used") and not _is_raw_url:
                             _blocked, _block_reason = is_blocked(
                                 crawl_result.status_code, crawl_result.html or "")
                             if _blocked:
