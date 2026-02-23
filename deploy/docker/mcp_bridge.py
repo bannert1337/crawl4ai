@@ -37,7 +37,7 @@ def mcp_tool(name: str | None = None):
     return deco
 
 # ── HTTP‑proxy helper for FastAPI endpoints ─────────────────────
-def _make_http_proxy(base_url: str, route):
+def _make_http_proxy(base_url: str, route, *, timeout: float | None = None):
     method = list(route.methods - {"HEAD", "OPTIONS"})[0]
     async def proxy(**kwargs):
         # replace `/items/{id}` style params first
@@ -49,7 +49,7 @@ def _make_http_proxy(base_url: str, route):
                 kwargs.pop(k)
         url = base_url.rstrip("/") + path
 
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=timeout) as client:
             try:
                 r = (
                     await client.get(url, params=kwargs)
@@ -61,6 +61,8 @@ def _make_http_proxy(base_url: str, route):
             except httpx.HTTPStatusError as e:
                 # surface FastAPI error details instead of plain 500
                 raise HTTPException(e.response.status_code, e.response.text)
+            except httpx.TimeoutException:
+                raise HTTPException(504, "upstream request timed out")
     return proxy
 
 # ── main entry point ────────────────────────────────────────────
@@ -70,6 +72,7 @@ def attach_mcp(
     base: str = "/mcp",
     name: str | None = None,
     base_url: str,              # eg. "http://127.0.0.1:8020"
+    timeout: float | None = None,  # httpx timeout in seconds; None = no limit
 ) -> None:
     """Call once after all routes are declared to expose WS+SSE MCP endpoints."""
     server_name = name or app.title or "FastAPI-MCP"
@@ -92,7 +95,7 @@ def attach_mcp(
         # if kind == "tool":
         #     tools[key] = _make_http_proxy(base_url, route)
         if kind == "tool":
-            proxy = _make_http_proxy(base_url, route)
+            proxy = _make_http_proxy(base_url, route, timeout=timeout)
             tools[key] = (proxy, fn)
             continue
         if kind == "resource":
