@@ -1219,6 +1219,7 @@ class BrowserManager:
                 or crawlerRunConfig.magic
             ):
                 await context.add_init_script(load_js_script("navigator_overrider"))
+                context._crawl4ai_nav_overrider_injected = True
 
         # Force-open closed shadow roots when flatten_shadow_dom is enabled
         if crawlerRunConfig and crawlerRunConfig.flatten_shadow_dom:
@@ -1228,6 +1229,7 @@ class BrowserManager:
                     return _origAttachShadow.call(this, {...init, mode: 'open'});
                 };
             """)
+            context._crawl4ai_shadow_dom_injected = True
 
         # Apply custom init_scripts from BrowserConfig (for stealth evasions, etc.)
         if self.config.init_scripts:

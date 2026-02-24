@@ -579,18 +579,25 @@ class AsyncPlaywrightCrawlerStrategy(AsyncCrawlerStrategy):
             #     [{"name": "cookiesEnabled", "value": "true", "url": url}]
             # )
 
-            # Handle navigator overrides
+            # Handle navigator overrides — only inject if not already done
+            # at context level by setup_context(). This fallback covers
+            # managed-browser / persistent / CDP paths where setup_context()
+            # is called without a crawlerRunConfig.
             if config.override_navigator or config.simulate_user or config.magic:
-                await context.add_init_script(load_js_script("navigator_overrider"))
+                if not getattr(context, '_crawl4ai_nav_overrider_injected', False):
+                    await context.add_init_script(load_js_script("navigator_overrider"))
+                    context._crawl4ai_nav_overrider_injected = True
 
-            # Force-open closed shadow roots when flatten_shadow_dom is enabled
+            # Force-open closed shadow roots — same guard against duplication
             if config.flatten_shadow_dom:
-                await context.add_init_script("""
-                    const _origAttachShadow = Element.prototype.attachShadow;
-                    Element.prototype.attachShadow = function(init) {
-                        return _origAttachShadow.call(this, {...init, mode: 'open'});
-                    };
-                """)
+                if not getattr(context, '_crawl4ai_shadow_dom_injected', False):
+                    await context.add_init_script("""
+                        const _origAttachShadow = Element.prototype.attachShadow;
+                        Element.prototype.attachShadow = function(init) {
+                            return _origAttachShadow.call(this, {...init, mode: 'open'});
+                        };
+                    """)
+                    context._crawl4ai_shadow_dom_injected = True
 
             # Call hook after page creation
             await self.execute_hook("on_page_context_created", page, context=context, config=config)
