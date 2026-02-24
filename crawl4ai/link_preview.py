@@ -289,17 +289,21 @@ class LinkPreview:
         Returns:
             Links object with head_data attached to matching links
         """
-        # Create URL to head_data mapping
+        # Create URL to head_data mapping (key by both final and original URL for redirects)
         url_to_head_data = {}
         for result in head_results:
             url = result.get("url")
+            head_info = {
+                "head_data": result.get("head_data", {}),
+                "status": result.get("status", "unknown"),
+                "error": result.get("error"),
+                "relevance_score": result.get("relevance_score")
+            }
             if url:
-                url_to_head_data[url] = {
-                    "head_data": result.get("head_data", {}),
-                    "status": result.get("status", "unknown"),
-                    "error": result.get("error"),
-                    "relevance_score": result.get("relevance_score")
-                }
+                url_to_head_data[url] = head_info
+            original_url = result.get("original_url")
+            if original_url and original_url != url:
+                url_to_head_data[original_url] = head_info
         
         # Update internal links
         updated_internal = []

@@ -1290,6 +1290,7 @@ class AsyncUrlSeeder:
             head_data = await asyncio.to_thread(_parse_head, html) if ok else {}
             entry = {
                 "url": final or url,
+                "original_url": url,
                 "status": status,
                 "head_data": head_data,
             }
