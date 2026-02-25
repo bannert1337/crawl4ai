@@ -1077,7 +1077,8 @@ class AsyncPlaywrightCrawlerStrategy(AsyncCrawlerStrategy):
                 screenshot_data = await self.take_screenshot(
                     page,
                     screenshot_height_threshold=config.screenshot_height_threshold,
-                    force_viewport_screenshot=config.force_viewport_screenshot
+                    force_viewport_screenshot=config.force_viewport_screenshot,
+                    scroll_delay=config.scroll_delay
                 )
 
             if screenshot_data or pdf_data or mhtml_data:
@@ -1697,7 +1698,9 @@ class AsyncPlaywrightCrawlerStrategy(AsyncCrawlerStrategy):
                     await asyncio.sleep(config.screenshot_wait_for)
                 screenshot_height_threshold = getattr(config, 'screenshot_height_threshold', None)
                 screenshot_data = await self.take_screenshot(
-                    page, screenshot_height_threshold=screenshot_height_threshold
+                    page,
+                    screenshot_height_threshold=screenshot_height_threshold,
+                    scroll_delay=config.scroll_delay if config else 0.2
                 )
 
             return screenshot_data, pdf_data, mhtml_data
@@ -1824,6 +1827,7 @@ class AsyncPlaywrightCrawlerStrategy(AsyncCrawlerStrategy):
             )
 
             # Page still too long, segment approach
+            scroll_delay = kwargs.get("scroll_delay", 0.2)
             segments = []
             viewport_size = page.viewport_size
             viewport_height = viewport_size["height"]
@@ -1845,7 +1849,7 @@ class AsyncPlaywrightCrawlerStrategy(AsyncCrawlerStrategy):
                     await page.set_viewport_size({"width": page_width, "height": last_part_height})
                 
                 await page.evaluate(f"window.scrollTo(0, {y_offset})")
-                await asyncio.sleep(0.01)  # wait for render
+                await asyncio.sleep(scroll_delay)  # wait for render (respects scroll_delay config)
                 
                 # Capture the current segment
                 # Note: Using compression options (format, quality) would go here
