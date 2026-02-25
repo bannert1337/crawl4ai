@@ -158,7 +158,7 @@ Use these for controlling whether you read or write from a local content cache. 
 | **`js_only`**              | `bool` (False)                 | If `True`, indicates we're reusing an existing session and only applying JS. No full reload.                                           |
 | **`ignore_body_visibility`** | `bool` (True)                | Skip checking if `<body>` is visible. Usually best to keep `True`.                                                                     |
 | **`scan_full_page`**       | `bool` (False)                 | If `True`, auto-scroll the page to load dynamic content (infinite scroll).                                                              |
-| **`scroll_delay`**         | `float` (0.2)                  | Delay between scroll steps if `scan_full_page=True`.                                                                                   |
+| **`scroll_delay`**         | `float` (0.2)                  | Delay between scroll steps when scanning the full page (`scan_full_page=True`) or capturing full-page screenshots. |
 | **`max_scroll_steps`**     | `int or None` (None)           | Maximum number of scroll steps during full page scan. If None, scrolls until entire page is loaded.                                     |
 | **`process_iframes`**      | `bool` (False)                 | Inlines iframe content for single-page extraction.                                                                                     |
 | **`flatten_shadow_dom`**   | `bool` (False)                 | Flattens Shadow DOM content into the light DOM before HTML capture. Resolves slots, strips shadow-scoped styles, and force-opens closed shadow roots. Essential for sites built with Web Components (Stencil, Lit, Shoelace, etc.). |
