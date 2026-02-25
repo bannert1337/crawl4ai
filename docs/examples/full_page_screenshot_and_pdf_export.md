@@ -56,6 +56,18 @@ if __name__ == "__main__":
 - If `screenshot=True`, and a PDF is already available, it directly converts the first page of that PDF to an image for you—no repeated loading or scrolling.
 - Finally, you get your PDF and/or screenshot ready to use.
 
+**Controlling scroll speed for full-page screenshots:**  
+When a page is taller than `screenshot_height_threshold` (default ~20,000px) and no PDF is available, Crawl4AI scrolls through the page to capture a stitched full-page screenshot. Use `scroll_delay` to control the pause between scroll steps:
+
+```python
+config = CrawlerRunConfig(
+    screenshot=True,
+    scroll_delay=0.5,  # Wait 0.5s between scroll steps (default: 0.2)
+)
+```
+
+This is particularly useful for pages with lazy-loaded images or animations that need time to render during scrolling.
+
 ---
 
 ## Viewport-Only Screenshots
