@@ -109,17 +109,22 @@ class BrowserConfig:
     - `user_agent`: Custom User-Agent string. If `None`, a default is used.  
     - `user_agent_mode`: Set to `"random"` for randomization (helps fight bot detection).
 
-12.⠀**`text_mode`** & **`light_mode`**  
-    - `text_mode=True` disables images, possibly speeding up text-only crawls.  
-    - `light_mode=True` turns off certain background features for performance.  
+12.⠀**`text_mode`** & **`light_mode`**
+    - `text_mode=True` disables images, possibly speeding up text-only crawls.
+    - `light_mode=True` turns off certain background features for performance.
 
-13.⠀**`extra_args`**  
+13.⠀**`avoid_ads`** & **`avoid_css`**
+    - `avoid_ads=True` blocks requests to common ad and tracker domains (Google Analytics, DoubleClick, Facebook, Hotjar, etc.) at the browser context level. Reduces network overhead and memory usage.
+    - `avoid_css=True` blocks loading of CSS files (`.css`, `.less`, `.scss`, `.sass`), useful when you only need text content and want faster, leaner crawls.
+    - Both default to `False` (opt-in). Can be combined with each other and with `text_mode`.
+
+14.⠀**`extra_args`**  
     - Additional flags for the underlying browser.  
     - E.g. `["--disable-extensions"]`.
 
-14.⠀**`enable_stealth`**  
-    - If `True`, enables stealth mode using playwright-stealth.  
-    - Modifies browser fingerprints to avoid basic bot detection.  
+15.⠀**`enable_stealth`**
+    - If `True`, enables stealth mode using playwright-stealth.
+    - Modifies browser fingerprints to avoid basic bot detection.
     - Default is `False`. Recommended for sites with bot protection.
 
 ### Helper Methods

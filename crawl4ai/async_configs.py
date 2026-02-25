@@ -579,6 +579,11 @@ class BrowserConfig:
                                         process to reclaim leaked memory. 0 = disabled.
                                         Recommended: 500-1000 for long-running crawlers.
                                         Default: 0.
+        avoid_ads (bool): If True, blocks ad-related and tracker network requests at the
+                          browser context level using a curated blocklist of top ad/tracker
+                          domains. Default: False.
+        avoid_css (bool): If True, blocks loading of CSS files (css, less, scss, sass) to
+                          reduce resource usage and speed up crawling. Default: False.
     """
 
     def __init__(
@@ -627,6 +632,8 @@ class BrowserConfig:
         debugging_port: int = 9222,
         host: str = "localhost",
         enable_stealth: bool = False,
+        avoid_ads: bool = False,
+        avoid_css: bool = False,
         init_scripts: List[str] = None,
         memory_saving_mode: bool = False,
         max_pages_before_recycle: int = 0,
@@ -692,6 +699,8 @@ class BrowserConfig:
         self.debugging_port = debugging_port
         self.host = host
         self.enable_stealth = enable_stealth
+        self.avoid_ads = avoid_ads
+        self.avoid_css = avoid_css
         self.init_scripts = init_scripts if init_scripts is not None else []
         self.memory_saving_mode = memory_saving_mode
         self.max_pages_before_recycle = max_pages_before_recycle
@@ -785,6 +794,8 @@ class BrowserConfig:
             "debugging_port": self.debugging_port,
             "host": self.host,
             "enable_stealth": self.enable_stealth,
+            "avoid_ads": self.avoid_ads,
+            "avoid_css": self.avoid_css,
             "init_scripts": self.init_scripts,
             "memory_saving_mode": self.memory_saving_mode,
             "max_pages_before_recycle": self.max_pages_before_recycle,

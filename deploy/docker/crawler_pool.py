@@ -39,6 +39,9 @@ async def get_crawler(cfg: BrowserConfig) -> AsyncWebCrawler:
         if PERMANENT and _is_default_config(sig):
             LAST_USED[sig] = time.time()
             USAGE_COUNT[sig] = USAGE_COUNT.get(sig, 0) + 1
+            if not hasattr(PERMANENT, 'active_requests'):
+                PERMANENT.active_requests = 0
+            PERMANENT.active_requests += 1
             logger.info("🔥 Using permanent browser")
             return PERMANENT
 
@@ -46,13 +49,21 @@ async def get_crawler(cfg: BrowserConfig) -> AsyncWebCrawler:
         if sig in HOT_POOL:
             LAST_USED[sig] = time.time()
             USAGE_COUNT[sig] = USAGE_COUNT.get(sig, 0) + 1
-            logger.info(f"♨️  Using hot pool browser (sig={sig[:8]})")
-            return HOT_POOL[sig]
+            crawler = HOT_POOL[sig]
+            if not hasattr(crawler, 'active_requests'):
+                crawler.active_requests = 0
+            crawler.active_requests += 1
+            logger.info(f"♨️  Using hot pool browser (sig={sig[:8]}, active={crawler.active_requests})")
+            return crawler
 
         # Check cold pool (promote to hot if used 3+ times)
         if sig in COLD_POOL:
             LAST_USED[sig] = time.time()
             USAGE_COUNT[sig] = USAGE_COUNT.get(sig, 0) + 1
+            crawler = COLD_POOL[sig]
+            if not hasattr(crawler, 'active_requests'):
+                crawler.active_requests = 0
+            crawler.active_requests += 1
 
             if USAGE_COUNT[sig] >= 3:
                 logger.info(f"⬆️  Promoting to hot pool (sig={sig[:8]}, count={USAGE_COUNT[sig]})")
@@ -68,7 +79,7 @@ async def get_crawler(cfg: BrowserConfig) -> AsyncWebCrawler:
                 return HOT_POOL[sig]
 
             logger.info(f"❄️  Using cold pool browser (sig={sig[:8]})")
-            return COLD_POOL[sig]
+            return crawler
 
         # Memory check before creating new
         mem_pct = get_container_memory_percent()
@@ -80,10 +91,22 @@ async def get_crawler(cfg: BrowserConfig) -> AsyncWebCrawler:
         logger.info(f"🆕 Creating new browser in cold pool (sig={sig[:8]}, mem={mem_pct:.1f}%)")
         crawler = AsyncWebCrawler(config=cfg, thread_safe=False)
         await crawler.start()
+        crawler.active_requests = 1
         COLD_POOL[sig] = crawler
         LAST_USED[sig] = time.time()
         USAGE_COUNT[sig] = 1
         return crawler
+
+async def release_crawler(crawler: AsyncWebCrawler):
+    """Decrement active request count for a pooled crawler.
+
+    Call this in a finally block after finishing work with a crawler
+    obtained via get_crawler() so the janitor knows when it's safe
+    to close idle browsers.
+    """
+    async with LOCK:
+        if hasattr(crawler, 'active_requests'):
+            crawler.active_requests = max(0, crawler.active_requests - 1)
 
 async def init_permanent(cfg: BrowserConfig):
     """Initialize permanent default browser."""
@@ -132,10 +155,13 @@ async def janitor():
             # Clean cold pool
             for sig in list(COLD_POOL.keys()):
                 if now - LAST_USED.get(sig, now) > cold_ttl:
+                    crawler = COLD_POOL[sig]
+                    if getattr(crawler, 'active_requests', 0) > 0:
+                        continue  # still serving requests, skip
                     idle_time = now - LAST_USED[sig]
                     logger.info(f"🧹 Closing cold browser (sig={sig[:8]}, idle={idle_time:.0f}s)")
                     with suppress(Exception):
-                        await COLD_POOL[sig].close()
+                        await crawler.close()
                     COLD_POOL.pop(sig, None)
                     LAST_USED.pop(sig, None)
                     USAGE_COUNT.pop(sig, None)
@@ -150,10 +176,13 @@ async def janitor():
             # Clean hot pool (more conservative)
             for sig in list(HOT_POOL.keys()):
                 if now - LAST_USED.get(sig, now) > hot_ttl:
+                    crawler = HOT_POOL[sig]
+                    if getattr(crawler, 'active_requests', 0) > 0:
+                        continue  # still serving requests, skip
                     idle_time = now - LAST_USED[sig]
                     logger.info(f"🧹 Closing hot browser (sig={sig[:8]}, idle={idle_time:.0f}s)")
                     with suppress(Exception):
-                        await HOT_POOL[sig].close()
+                        await crawler.close()
                     HOT_POOL.pop(sig, None)
                     LAST_USED.pop(sig, None)
                     USAGE_COUNT.pop(sig, None)

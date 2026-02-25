@@ -49,6 +49,8 @@ browser_cfg = BrowserConfig(
 | **`user_agent_generator_config`** | `dict` (default: `{}`)     | Configuration dict for user agent generation when `user_agent_mode="random"`.                                                         |
 | **`text_mode`**       | `bool` (default: `False`)              | If `True`, tries to disable images/other heavy content for speed.                                                                     |
 | **`light_mode`**      | `bool` (default: `False`)              | Disables some background features for performance gains.                                                                              |
+| **`avoid_ads`**       | `bool` (default: `False`)              | If `True`, blocks requests to common ad/tracker domains (Google Analytics, DoubleClick, Facebook, Hotjar, etc.) at the browser context level. |
+| **`avoid_css`**       | `bool` (default: `False`)              | If `True`, blocks loading of CSS files (`.css`, `.less`, `.scss`, `.sass`) for faster, leaner crawls when only text content is needed. |
 | **`extra_args`**      | `list` (default: `[]`)                 | Additional flags for the underlying browser process, e.g. `["--disable-extensions"]`.                                                |
 | **`enable_stealth`**  | `bool` (default: `False`)              | Enable playwright-stealth mode to bypass bot detection. Cannot be used with `browser_mode="builtin"`.                                |
 

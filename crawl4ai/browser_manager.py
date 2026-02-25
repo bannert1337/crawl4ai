@@ -1258,59 +1258,47 @@ class BrowserManager:
         }
         proxy_settings = {"server": self.config.proxy} if self.config.proxy else None
 
-        blocked_extensions = [
+        # CSS extensions (blocked separately via avoid_css flag)
+        css_extensions = ["css", "less", "scss", "sass"]
+
+        # Static resource extensions (blocked when text_mode is enabled)
+        static_extensions = [
             # Images
-            "jpg",
-            "jpeg",
-            "png",
-            "gif",
-            "webp",
-            "svg",
-            "ico",
-            "bmp",
-            "tiff",
-            "psd",
+            "jpg", "jpeg", "png", "gif", "webp", "svg", "ico", "bmp", "tiff", "psd",
             # Fonts
-            "woff",
-            "woff2",
-            "ttf",
-            "otf",
-            "eot",
-            # Styles
-            # 'css', 'less', 'scss', 'sass',
+            "woff", "woff2", "ttf", "otf", "eot",
             # Media
-            "mp4",
-            "webm",
-            "ogg",
-            "avi",
-            "mov",
-            "wmv",
-            "flv",
-            "m4v",
-            "mp3",
-            "wav",
-            "aac",
-            "m4a",
-            "opus",
-            "flac",
+            "mp4", "webm", "ogg", "avi", "mov", "wmv", "flv", "m4v",
+            "mp3", "wav", "aac", "m4a", "opus", "flac",
             # Documents
-            "pdf",
-            "doc",
-            "docx",
-            "xls",
-            "xlsx",
-            "ppt",
-            "pptx",
+            "pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx",
             # Archives
-            "zip",
-            "rar",
-            "7z",
-            "tar",
-            "gz",
+            "zip", "rar", "7z", "tar", "gz",
             # Scripts and data
-            "xml",
-            "swf",
-            "wasm",
+            "xml", "swf", "wasm",
+        ]
+
+        # Ad and tracker domain patterns (curated from uBlock/EasyList sources)
+        ad_tracker_patterns = [
+            "**/google-analytics.com/**",
+            "**/googletagmanager.com/**",
+            "**/googlesyndication.com/**",
+            "**/doubleclick.net/**",
+            "**/adservice.google.com/**",
+            "**/adsystem.com/**",
+            "**/adzerk.net/**",
+            "**/adnxs.com/**",
+            "**/ads.linkedin.com/**",
+            "**/facebook.net/**",
+            "**/analytics.twitter.com/**",
+            "**/ads-twitter.com/**",
+            "**/hotjar.com/**",
+            "**/clarity.ms/**",
+            "**/scorecardresearch.com/**",
+            "**/pixel.wp.com/**",
+            "**/amazon-adsystem.com/**",
+            "**/mixpanel.com/**",
+            "**/segment.com/**",
         ]
 
         # Common context settings
@@ -1364,11 +1352,21 @@ class BrowserManager:
         # Create and return the context with all settings
         context = await self.browser.new_context(**context_settings)
 
-        # Apply text mode settings if enabled
+        # Build dynamic blocking list based on config flags
+        to_block = []
+        if self.config.avoid_css:
+            to_block.extend(css_extensions)
         if self.config.text_mode:
-            # Create and apply route patterns for each extension
-            for ext in blocked_extensions:
+            to_block.extend(static_extensions)
+
+        if to_block:
+            for ext in to_block:
                 await context.route(f"**/*.{ext}", lambda route: route.abort())
+
+        if self.config.avoid_ads:
+            for pattern in ad_tracker_patterns:
+                await context.route(pattern, lambda route: route.abort())
+
         return context
 
     def _make_config_signature(self, crawlerRunConfig: CrawlerRunConfig) -> str:

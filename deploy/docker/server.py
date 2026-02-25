@@ -7,7 +7,7 @@ Crawl4AI FastAPI entry‑point
 """
 
 # ── stdlib & 3rd‑party imports ───────────────────────────────
-from crawler_pool import get_crawler, close_all, janitor
+from crawler_pool import get_crawler, release_crawler, close_all, janitor
 from crawl4ai import AsyncWebCrawler, BrowserConfig, CrawlerRunConfig
 from crawl4ai.__version__ import __version__
 from auth import create_access_token, get_token_dependency, TokenRequest
@@ -367,8 +367,8 @@ async def generate_html(
     Use when you need sanitized HTML structures for building schemas or further processing.
     """
     validate_url_scheme(body.url, allow_raw=True)
-    from crawler_pool import get_crawler
     cfg = CrawlerRunConfig()
+    crawler = None
     try:
         crawler = await get_crawler(get_default_browser_config())
         results = await crawler.arun(url=body.url, config=cfg)
@@ -381,6 +381,9 @@ async def generate_html(
         return JSONResponse({"html": processed_html, "url": body.url, "success": True})
     except Exception as e:
         raise HTTPException(500, detail=str(e))
+    finally:
+        if crawler:
+            await release_crawler(crawler)
 
 # Screenshot endpoint
 
@@ -399,7 +402,7 @@ async def generate_screenshot(
     Then in result instead of the screenshot you will get a path to the saved file.
     """
     validate_url_scheme(body.url)
-    from crawler_pool import get_crawler
+    crawler = None
     try:
         cfg = CrawlerRunConfig(screenshot=True, screenshot_wait_for=body.screenshot_wait_for)
         crawler = await get_crawler(get_default_browser_config())
@@ -416,6 +419,9 @@ async def generate_screenshot(
         return {"success": True, "screenshot": screenshot_data}
     except Exception as e:
         raise HTTPException(500, detail=str(e))
+    finally:
+        if crawler:
+            await release_crawler(crawler)
 
 # PDF endpoint
 
@@ -434,7 +440,7 @@ async def generate_pdf(
     Then in result instead of the PDF you will get a path to the saved file.
     """
     validate_url_scheme(body.url)
-    from crawler_pool import get_crawler
+    crawler = None
     try:
         cfg = CrawlerRunConfig(pdf=True)
         crawler = await get_crawler(get_default_browser_config())
@@ -451,6 +457,9 @@ async def generate_pdf(
         return {"success": True, "pdf": base64.b64encode(pdf_data).decode()}
     except Exception as e:
         raise HTTPException(500, detail=str(e))
+    finally:
+        if crawler:
+            await release_crawler(crawler)
 
 
 @app.post("/execute_js")
@@ -507,7 +516,7 @@ async def execute_js(
 
     """
     validate_url_scheme(body.url)
-    from crawler_pool import get_crawler
+    crawler = None
     try:
         cfg = CrawlerRunConfig(js_code=body.scripts)
         crawler = await get_crawler(get_default_browser_config())
@@ -518,6 +527,9 @@ async def execute_js(
         return JSONResponse(data)
     except Exception as e:
         raise HTTPException(500, detail=str(e))
+    finally:
+        if crawler:
+            await release_crawler(crawler)
 
 
 @app.get("/llm/{url:path}")
