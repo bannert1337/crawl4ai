@@ -39,6 +39,7 @@ We would like to thank the following people for their contributions to Crawl4AI:
 - [complete-dope](https://github.com/complete-dope) - identified: console logging error attribute issue [#729](https://github.com/unclecode/crawl4ai/pull/729)
 - [TristanDonze](https://github.com/TristanDonze) - feat: add configurable device_scale_factor for screenshot quality [#1463](https://github.com/unclecode/crawl4ai/pull/1463)
 - [charlaie](https://github.com/charlaie) - feat: add redirected_status_code to CrawlResult [#1435](https://github.com/unclecode/crawl4ai/pull/1435)
+- [mzyfree](https://github.com/mzyfree) - investigation: Docker concurrency performance and pool resource management [#1689](https://github.com/unclecode/crawl4ai/pull/1689)
 
 #### Feb-Alpha-1
 - [sufianuddin](https://github.com/sufianuddin) - fix: [Documentation for JsonCssExtractionStrategy](https://github.com/unclecode/crawl4ai/issues/651)
